@@ -1,0 +1,550 @@
+<div class="pulse-container">
+
+  <!-- Sidebar -->
+  <aside class="sidebar" [class.collapsed]="isSidebarCollapsed">
+    <div class="sidebar-top">
+      <div class="brand">
+        <h1 class="brand-name" *ngIf="!isSidebarCollapsed">{{ user?.name || user?.email || 'User' }}</h1>
+        <div class="pulse-logo" *ngIf="isSidebarCollapsed">{{ (user?.name || 'U')[0].toUpperCase() }}</div>
+      </div>
+
+      <div class="user-context" *ngIf="!isSidebarCollapsed">
+        <div class="context-title">{{ isAdmin ? 'Admin Center' : 'User Center' }}</div>
+        <div class="context-subtitle">Enterprise Hub</div>
+      </div>
+
+      <nav class="side-nav">
+        <button (click)="setView('analytics')" class="nav-item" [class.active]="activeView === 'analytics'">
+          <span class="icon material-symbols-outlined">notifications</span>
+          <span class="nav-label" *ngIf="!isSidebarCollapsed">Notifications</span>
+        </button>
+        <button class="nav-item" [class.active]="activeView === 'history'" (click)="setView('history')" *ngIf="isAdmin">
+          <span class="icon material-symbols-outlined">history</span>
+          <span class="nav-label" *ngIf="!isSidebarCollapsed">History</span>
+        </button>
+      </nav>
+    </div>
+
+    <div class="sidebar-bottom">
+      <button *ngIf="isAdmin" class="compose-btn" (click)="setView('compose')">
+        <span class="icon material-symbols-outlined" style="font-size: 18px;">edit</span>
+        <span *ngIf="!isSidebarCollapsed">Compose New</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Area -->
+  <main class="main-content">
+
+    <!-- Top Header -->
+    <header class="main-header">
+      <div class="header-left">
+        <nav class="header-tabs">
+          <a class="tab-item" [class.active]="activeView === 'all-notifications'" (click)="setView('all-notifications')" style="cursor:pointer">Dashboard</a>
+          <a class="tab-item" [class.active]="activeView === 'analytics'" (click)="setView('analytics')" style="cursor:pointer">Analytics</a>
+        </nav>
+      </div>
+      <div class="header-right">
+        <div class="header-search" *ngIf="isAdmin">
+          <span class="material-symbols-outlined search-icon">search</span>
+          <input type="text" placeholder="Search...">
+        </div>
+        
+        <div class="header-actions">
+          <app-notification-bell></app-notification-bell>
+          <button class="logout-minimal" (click)="logout()" title="Logout">
+             <span class="material-symbols-outlined">logout</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <div class="content-scroll-area">
+      <div class="content-container">
+
+        <!-- Analytics View Content -->
+        <div *ngIf="activeView === 'analytics'" class="view-wrapper">
+          <div class="view-header-section">
+            <div class="title-block">
+              <h1>Notification Analytics</h1>
+              <p class="subtitle">Monitoring system-wide intelligence feeds and action items.</p>
+            </div>
+            <div class="header-btn-group">
+              <button class="btn-secondary mark-read-btn" (click)="markAllAsReadAndView()">
+                <span class="material-symbols-outlined">check_all</span>
+                Mark all as read
+              </button>
+              <button class="btn-view-all" (click)="setView('all-notifications')">
+                <span class="material-symbols-outlined">open_in_full</span>
+                View All Notifications
+              </button>
+            </div>
+          </div>
+
+          <!-- Summary Cards -->
+          <div class="analytics-grid">
+            <div class="analysis-card clickable" (click)="setFilter('ALL')" [class.active-card]="activeFilter === 'ALL'">
+              <div class="card-icon-box blue-icon">
+                <span class="material-symbols-outlined">view_agenda</span>
+              </div>
+              <div class="card-body">
+                <label>Total Received</label>
+                <div class="card-value">{{ totalReceived }}</div>
+                <div class="card-footer-text">LIFETIME LOGS</div>
+              </div>
+            </div>
+
+            <div class="analysis-card clickable" (click)="setFilter('READ')" [class.active-card]="activeFilter === 'READ'">
+              <div class="card-icon-box light-blue-icon">
+                <span class="material-symbols-outlined">mail</span>
+              </div>
+              <div class="card-body">
+                <label>Read</label>
+                <div class="card-value">{{ readCount }}</div>
+                <div class="progress-track">
+                  <div class="progress-fill" [style.width.%]="(totalReceived ? (readCount/totalReceived)*100 : 0)"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="analysis-card clickable urgent-card" (click)="setFilter('UNREAD')" [class.active-card]="activeFilter === 'UNREAD'">
+              <div class="card-icon-box red-icon">
+                <span class="material-symbols-outlined">notifications_active</span>
+              </div>
+              <div class="card-body">
+                <label>Unread</label>
+                <div class="card-value highlight-red">{{ unreadCount }}</div>
+                <div class="card-footer-text red-text">ACTION REQUIRED</div>
+              </div>
+              <div class="card-accent-tag"></div>
+            </div>
+          </div>
+
+          <!-- Recent Notifications Section (Top 5 Preview) -->
+          <section class="notification-section">
+            <div class="section-header">
+              <h2>Recent Notifications</h2>
+              <div class="filter-tabs">
+                <button class="filter-tab" [class.active]="activeFilter==='ALL'" (click)="setFilter('ALL')">ALL</button>
+                <button class="filter-tab" [class.active]="activeFilter==='SYSTEM'" (click)="setFilter('SYSTEM')">SYSTEM</button>
+                <button class="filter-tab" [class.active]="activeFilter==='ALERTS'" (click)="setFilter('ALERTS')">ALERTS</button>
+              </div>
+            </div>
+
+            <div class="notifications-list">
+              <div *ngFor="let n of filteredNotifications | slice:0:5" 
+                   class="notification-card" 
+                   [class.unread-item]="!n.isRead"
+                   [attr.data-type]="n.type"
+                   (click)="openDetail(n)">
+                
+                <div class="item-status-strip"></div>
+                
+                <div class="item-icon-container">
+                  <div class="item-icon-circle">
+                    <span *ngIf="n.type === 'INFO'" class="material-symbols-outlined">bolt</span>
+                    <span *ngIf="n.type === 'SUCCESS' || n.type === 'APPROVED_REQUEST'" class="material-symbols-outlined">groups</span>
+                    <span *ngIf="n.type === 'ERROR' || n.type === 'WARNING'" class="material-symbols-outlined">error</span>
+                    <span *ngIf="n.type === 'ACTION_REQUIRED'" class="material-symbols-outlined">mail</span>
+                    <span *ngIf="!(['INFO','SUCCESS','APPROVED_REQUEST','ERROR','WARNING','ACTION_REQUIRED'].includes(n.type))" class="material-symbols-outlined">notifications</span>
+                  </div>
+                </div>
+
+                <div class="item-details">
+                  <div class="item-row">
+                    <h4 class="item-title">{{ n.title }}</h4>
+                    <div class="item-badges">
+                       <span class="status-pill" [attr.data-pill]="n.type">
+                         {{ n.type === 'INFO' ? 'NEW' : (n.type === 'SUCCESS' || n.type === 'APPROVED_REQUEST' ? 'INVITE' : (n.type === 'ERROR' || n.type === 'WARNING' ? 'URGENT' : (n.isRead ? 'READ' : n.type))) }}
+                       </span>
+                    </div>
+                  </div>
+                  <p class="item-msg">{{ n.message }}</p>
+                  
+                  <div class="item-meta-row">
+                    <span class="item-time">Sent {{ n.receivedAt | date:'shortTime' }} ago</span>
+                    <div class="item-actions-links">
+                       <a class="link-action" *ngIf="!isActionRequired(n)">View Details</a>
+                    </div>
+                  </div>
+
+                  <!-- Inline Actions -->
+                  <div class="notif-badge-action" *ngIf="n.type === 'ACTION_REQUIRED' && n.status !== 'PENDING'">
+                    <span *ngIf="n.status === 'PENDING'">ACTION_REQUIRED</span>
+                    <span *ngIf="n.status === 'APPROVED'" class="status-success">APPROVED</span>
+                    <span *ngIf="n.status === 'REJECTED'" class="status-error">REJECTED</span>
+                  </div>
+                  <div class="inline-actions" *ngIf="isActionRequired(n) && n.status === 'PENDING'">
+                    <button class="btn-primary-sm" (click)="handleAction(n, ActionType.APPROVED); $event.stopPropagation()">Accept</button>
+                    <button class="btn-outline-sm" (click)="handleAction(n, ActionType.REJECT); $event.stopPropagation()">Decline</button>
+                  </div>
+
+                  <!-- Urgent Action Link -->
+                  <div class="urgent-action-link" *ngIf="n.type === 'ERROR' || n.type === 'WARNING'">
+                    <a class="link-red" (click)="openDetail(n); $event.stopPropagation()">Verify Activity</a>
+                  </div>
+
+                </div>
+              </div>
+
+              <div *ngIf="filteredNotifications.length === 0" class="empty-list">
+                <div class="empty-icon"><span class="material-symbols-outlined">inbox</span></div>
+                <p>No notifications found in this category.</p>
+              </div>
+            </div>
+
+            <!-- View All Button -->
+            <div class="view-all-footer" *ngIf="filteredNotifications.length > 5">
+              <button class="btn-view-all-full" (click)="setView('all-notifications')">
+                <span class="material-symbols-outlined">expand_more</span>
+                View All {{ filteredNotifications.length }} Notifications
+              </button>
+            </div>
+          </section>
+        </div>
+
+        <!-- All Notifications View (Full List) -->
+        <div *ngIf="activeView === 'all-notifications'" class="view-wrapper">
+          <div class="view-header-section">
+            <div class="title-block">
+              <h1>All Notifications</h1>
+              <p class="subtitle">Complete list of all your notifications.</p>
+            </div>
+            <button class="btn-secondary mark-read-btn" (click)="markAllAsRead()">
+              <span class="material-symbols-outlined">check_all</span>
+              Mark all as read
+            </button>
+          </div>
+
+          <section class="notification-section">
+            <div class="section-header">
+              <h2>All Notifications <span class="count-badge">{{ filteredNotifications.length }}</span></h2>
+              <div class="filter-tabs">
+                <button class="filter-tab" [class.active]="activeFilter==='ALL'" (click)="setFilter('ALL')">ALL</button>
+                <button class="filter-tab" [class.active]="activeFilter==='UNREAD'" (click)="setFilter('UNREAD')">UNREAD</button>
+                <button class="filter-tab" [class.active]="activeFilter==='READ'" (click)="setFilter('READ')">READ</button>
+                <button class="filter-tab" [class.active]="activeFilter==='SYSTEM'" (click)="setFilter('SYSTEM')">SYSTEM</button>
+                <button class="filter-tab" [class.active]="activeFilter==='ALERTS'" (click)="setFilter('ALERTS')">ALERTS</button>
+              </div>
+            </div>
+
+            <div class="notifications-list">
+              <div *ngFor="let n of filteredNotifications" 
+                   class="notification-card" 
+                   [class.unread-item]="!n.isRead"
+                   [attr.data-type]="n.type"
+                   (click)="openDetail(n)">
+                
+                <div class="item-status-strip"></div>
+                
+                <div class="item-icon-container">
+                  <div class="item-icon-circle">
+                    <span *ngIf="n.type === 'INFO'" class="material-symbols-outlined">bolt</span>
+                    <span *ngIf="n.type === 'SUCCESS' || n.type === 'APPROVED_REQUEST'" class="material-symbols-outlined">groups</span>
+                    <span *ngIf="n.type === 'ERROR' || n.type === 'WARNING'" class="material-symbols-outlined">error</span>
+                    <span *ngIf="n.type === 'ACTION_REQUIRED'" class="material-symbols-outlined">mail</span>
+                    <span *ngIf="!(['INFO','SUCCESS','APPROVED_REQUEST','ERROR','WARNING','ACTION_REQUIRED'].includes(n.type))" class="material-symbols-outlined">notifications</span>
+                  </div>
+                </div>
+
+                <div class="item-details">
+                  <div class="item-row">
+                    <h4 class="item-title">{{ n.title }}</h4>
+                    <div class="item-badges">
+                       <span class="status-pill" [attr.data-pill]="n.type">
+                         {{ n.type === 'INFO' ? 'NEW' : (n.type === 'SUCCESS' || n.type === 'APPROVED_REQUEST' ? 'INVITE' : (n.type === 'ERROR' || n.type === 'WARNING' ? 'URGENT' : (n.isRead ? 'READ' : n.type))) }}
+                       </span>
+                    </div>
+                  </div>
+                  <p class="item-msg">{{ n.message }}</p>
+                  
+                  <div class="item-meta-row">
+                    <span class="item-time">Sent {{ n.receivedAt | date:'shortTime' }} ago</span>
+                    <div class="item-actions-links">
+                       <a class="link-action" *ngIf="!isActionRequired(n)">View Details</a>
+                    </div>
+                  </div>
+
+                  <!-- Inline Actions -->
+                  <div class="notif-badge-action" *ngIf="n.type === 'ACTION_REQUIRED' && n.status !== 'PENDING'">
+                    <span *ngIf="n.status === 'APPROVED'" class="status-success">APPROVED</span>
+                    <span *ngIf="n.status === 'REJECTED'" class="status-error">REJECTED</span>
+                  </div>
+                  <div class="inline-actions" *ngIf="isActionRequired(n) && n.status === 'PENDING'">
+                    <button class="btn-primary-sm" (click)="handleAction(n, ActionType.APPROVED); $event.stopPropagation()">Accept</button>
+                    <button class="btn-outline-sm" (click)="handleAction(n, ActionType.REJECT); $event.stopPropagation()">Decline</button>
+                  </div>
+
+                  <!-- Urgent Action Link -->
+                  <div class="urgent-action-link" *ngIf="n.type === 'ERROR' || n.type === 'WARNING'">
+                    <a class="link-red" (click)="openDetail(n); $event.stopPropagation()">Verify Activity</a>
+                  </div>
+                </div>
+              </div>
+
+              <div *ngIf="filteredNotifications.length === 0" class="empty-list">
+                <div class="empty-icon"><span class="material-symbols-outlined">inbox</span></div>
+                <p>No notifications found in this category.</p>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <!-- Compose View (Full Featured & Redesigned) -->
+        <div *ngIf="activeView === 'compose' && isAdmin" class="compose-wrapper">
+          <div class="view-header-section">
+            <div class="title-block">
+              <h1>Compose Notification</h1>
+              <p class="subtitle">Broadcast important updates to your enterprise team.</p>
+            </div>
+          </div>
+
+          <div class="compose-form-container">
+            <!-- Step 1: Content -->
+            <div class="form-section">
+              <div class="section-label">
+                <span class="number">1</span>
+                <span>CONTENT DETAILS</span>
+              </div>
+              <div class="form-card">
+                <div class="field-group">
+                  <label>SUBJECT TITLE</label>
+                  <input type="text" [(ngModel)]="notification.title" placeholder="e.g. System Maintenance Scheduled">
+                </div>
+                <div class="field-group">
+                  <label>MESSAGE CONTENT</label>
+                  <textarea [(ngModel)]="notification.message" rows="4" 
+                    placeholder="Provide details about the notification..."></textarea>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-row-grid">
+              <!-- Step 2: Classification -->
+              <div class="form-section">
+                <div class="section-label">
+                  <span class="number">2</span>
+                  <span>CLASSIFICATION</span>
+                </div>
+                <div class="form-card">
+                  <div class="field-group">
+                    <label>NOTIFICATION TYPE</label>
+                    <div class="select-wrapper">
+                      <select [(ngModel)]="notification.type">
+                        <option *ngFor="let t of types" [value]="t">{{t}}</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="field-group">
+                    <label>PRIORITY LEVEL</label>
+                    <div class="priority-pills">
+                      <button *ngFor="let p of priorities" 
+                              [class.active]="notification.priority === p"
+                              (click)="notification.priority = p"
+                              class="priority-pill" [attr.data-p]="p">
+                        {{p}}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Step 3: Audience -->
+              <div class="form-section">
+                <div class="section-label">
+                  <span class="number">3</span>
+                  <span>AUDIENCE</span>
+                </div>
+                <div class="form-card">
+                  <div class="field-group">
+                    <label>TARGET AUDIENCE</label>
+                    <div class="target-toggle">
+                      <button *ngFor="let target of targets" 
+                              [class.active]="notification.targetType === target"
+                              (click)="notification.targetType = target"
+                              class="target-btn">
+                        {{target === TargetType.ALL ? 'Everyone' : (target === TargetType.USER ? 'Specific Users' : 'Department')}}
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Dynamic Audience Fields (Enhanced) -->
+                  <div class="dynamic-fields animate-slide" *ngIf="notification.targetType === TargetType.USER">
+                    <div class="field-group">
+                      <label>SEARCH USER BY EMAIL</label>
+                      <input type="text" placeholder="Start typing email..." (input)="onUserSearch($event)">
+                      
+                      <!-- Search Results Dropdown -->
+                      <div class="search-results-dropdown" *ngIf="userSearchResults.length > 0 || isSearching">
+                        <div class="search-loading" *ngIf="isSearching">
+                          <span class="material-symbols-outlined animate-spin">sync</span>
+                          Searching...
+                        </div>
+                        <ng-container *ngIf="!isSearching">
+                          <div class="search-item" *ngFor="let u of userSearchResults" (click)="selectUser(u)">
+                            <div class="u-name">{{ u.name }}</div>
+                            <div class="u-email">{{ u.email }}</div>
+                          </div>
+                          <div class="search-no-results" *ngIf="userSearchResults.length === 0">
+                            No users found for this search.
+                          </div>
+                        </ng-container>
+                      </div>
+                      
+                      <!-- Selected Users Badges -->
+                      <div class="selected-audience-container" *ngIf="selectedUsers.length > 0">
+                        <div class="selected-audience-badge animate-slide" *ngFor="let u of selectedUsers">
+                          <span class="material-symbols-outlined">person</span>
+                          <span>{{ u.name }}</span>
+                          <button class="clear-selection" (click)="removeUser(u)">
+                            <span class="material-symbols-outlined">close</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="dynamic-fields animate-slide" *ngIf="notification.targetType === TargetType.DEPARTMENT">
+                    <div class="field-group">
+                      <label>SELECT DEPARTMENT</label>
+                      <div class="select-wrapper">
+                        <select [(ngModel)]="notification.departmentId" (change)="onDeptChange($event)">
+                          <option [value]="undefined" disabled selected>Choose a department...</option>
+                          <option *ngFor="let d of departments" [value]="d.id">{{ d.name }}</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            </div>
+
+            <div class="compose-footer">
+              <button class="btn-ghost" (click)="setView('analytics')">Cancel</button>
+              <button class="btn-send-premium" (click)="pushNotification()"
+                [disabled]="!notification.title || !notification.message">
+                <span>Push Notification</span>
+                <span class="material-symbols-outlined">send</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- History View Content (Logic preserved) -->
+        <div *ngIf="activeView === 'history' && isAdmin" class="history-wrapper">
+             <div class="view-header-section">
+                <div class="title-block">
+                  <h1>Dispatch History</h1>
+                  <p class="subtitle">Complete audit trail of all sent notifications.</p>
+                </div>
+                <button class="btn-secondary" (click)="loadHistory()">
+                  <span class="material-symbols-outlined">refresh</span>
+                  Refresh
+                </button>
+              </div>
+              
+              <div class="history-table-container">
+                  <table class="modern-table">
+                      <thead>
+                          <tr>
+                              <th>Timestamp</th>
+                              <th>Notification</th>
+                              <th>Target</th>
+                              <th>Status</th>
+                          </tr>
+                      </thead>
+                      <tbody>
+                          <tr *ngFor="let h of sentHistory">
+                              <td class="time-cell">{{ h.createdAt | date:'MMM d, HH:mm' }}</td>
+                              <td class="info-cell">
+                                  <div class="h-title">{{ h.title }}</div>
+                                  <div class="h-msg">{{ h.message | slice:0:60 }}...</div>
+                              </td>
+                              <td class="target-cell">
+                                <span class="pill-gray" *ngIf="h.targetType === 'ALL'">Broadcast</span>
+                                <span class="pill-gray" *ngIf="h.targetType === 'DEPARTMENT'">Dept: {{ h.targetNames[0] || 'Unknown' }}</span>
+                                <span class="pill-gray" *ngIf="h.targetType === 'USER'">
+                                  {{ h.targetNames.slice(0, 2).join(', ') }}{{ h.targetNames.length > 2 ? '...' : '' }}
+                                </span>
+                              </td>
+                              <td class="status-cell">
+                                  <span class="pill-blue">{{ h.priority }}</span>
+                              </td>
+                          </tr>
+                      </tbody>
+                  </table>
+              </div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+
+  <!-- Side Detail Panel (Modernized) -->
+  <div class="detail-overlay" *ngIf="showDetailSide" (click)="closeDetail()"></div>
+  <aside class="detail-backdrop" [class.is-open]="showDetailSide">
+    <div class="detail-inner" *ngIf="selectedNotif">
+      <div class="detail-header">
+        <h3>Notification Details</h3>
+        <button class="close-icon-btn" (click)="closeDetail()">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      
+      <div class="detail-scrollable">
+        <div class="detail-hero">
+           <div class="detail-type-icon" [attr.data-type]="selectedNotif.type">
+              <span class="material-symbols-outlined">notifications</span>
+           </div>
+           <h2>{{ selectedNotif.title }}</h2>
+           <div class="sender-badge-row">
+             <span class="sender-name">{{ selectedNotif.senderName || 'System Admin' }}</span>
+             <span class="sender-dept">{{ selectedNotif.senderDepartment || 'Management' }}</span>
+           </div>
+           <p class="detail-timestamp">Received {{ selectedNotif.receivedAt | date:'medium' }}</p>
+        </div>
+
+        <div class="detail-content-box">
+             <label>Message</label>
+             <div class="message-text">{{ selectedNotif.message }}</div>
+        </div>
+
+        <div class="detail-metadata">
+            <div class="meta-row">
+                <label>Category</label>
+                <span class="pill-inline">{{ selectedNotif.type }}</span>
+                <div class="meta-row" *ngIf="selectedNotif.type === 'ACTION_REQUIRED'">
+                <label>Resolution Status</label>
+                <span class="pill-inline" [attr.data-status]="selectedNotif.status">{{ selectedNotif.status }}</span>
+            </div>
+        </div>
+            <div class="meta-row">
+                <label>Priority</label>
+                <span class="pill-inline" [attr.data-p]="selectedNotif.priority">{{ selectedNotif.priority }}</span>
+            </div>
+        </div>
+
+        <div class="detail-actions-footer" *ngIf="isActionRequired(selectedNotif)">
+             <button class="btn-primary-full" (click)="handleAction(selectedNotif, ActionType.APPROVED)">Approve Request</button>
+             <button class="btn-outline-full" (click)="handleAction(selectedNotif, ActionType.REJECT)">Reject Request</button>
+        </div>
+
+        <div class="resolved-banner" *ngIf="selectedNotif.type === 'ACTION_REQUIRED' && selectedNotif.status !== 'PENDING'">
+            <span class="material-symbols-outlined">{{ selectedNotif.status === 'APPROVED' ? 'check_circle' : 'cancel' }}</span>
+            <p>Action resolved as <strong>{{ selectedNotif.status }}</strong></p>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Toast (Real-time) -->
+  <div class="notification-toast" *ngIf="showToast">
+    <div class="toast-side-line"></div>
+    <div class="toast-content">
+      <div class="toast-title">{{ latestNotification?.title }}</div>
+      <div class="toast-message">{{ latestNotification?.message }}</div>
+    </div>
+  </div>
+
+</div>

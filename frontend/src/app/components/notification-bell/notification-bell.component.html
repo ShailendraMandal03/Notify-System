@@ -1,0 +1,36 @@
+<div class="bell-wrapper">
+  <button class="trigger-btn" (click)="toggleDropdown()">
+    <span class="material-symbols-outlined">notifications</span>
+    <span class="count-badge" *ngIf="unread > 0">{{ unread > 99 ? '9...' : unread }}</span>
+  </button>
+
+  <div class="dropdown-panel" *ngIf="isOpen">
+    <div class="panel-header">
+      <h4>Notifications</h4>
+      <button class="mark-all-link" (click)="markAll()" *ngIf="unread > 0">Mark all as read</button>
+    </div>
+    
+    <div class="panel-list">
+      <div class="empty-state" *ngIf="notifications.length === 0">
+        <span class="material-symbols-outlined">inbox</span>
+        <p>No new notifications</p>
+      </div>
+      
+      <div class="quick-item" 
+           *ngFor="let n of notifications" 
+           [class.is-unread]="!n.isRead"
+           (click)="markRead(n)">
+        <div class="item-head">
+          <span class="item-title">{{ n.title }}</span>
+          <span class="item-dot" *ngIf="!n.isRead"></span>
+        </div>
+        <div class="item-preview">{{ n.message | slice:0:60 }}{{ n.message.length > 60 ? '...' : '' }}</div>
+        <div class="item-time">{{ n.receivedAt | date:'shortTime' }}</div>
+      </div>
+    </div>
+    
+    <div class="panel-footer" *ngIf="notifications.length > 0">
+      <button class="view-all-btn">View All</button>
+    </div>
+  </div>
+</div>
